@@ -2,7 +2,9 @@ import streamlit as st
 import numpy as np
 import sqlite3
 from PIL import Image
-import tensorflow as tf
+import os
+import gdown
+
 from tensorflow.keras.applications.efficientnet import preprocess_input
 from tensorflow.keras.models import load_model
 
@@ -12,11 +14,22 @@ from tensorflow.keras.models import load_model
 st.set_page_config(page_title="Pest Detection App", layout="centered")
 
 # -----------------------------
-# DATABASE
+# HIDE STREAMLIT HEADER/FOOTER
+# -----------------------------
+hide_streamlit_style = """
+<style>
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+</style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# -----------------------------
+# DATABASE SETUP
 # -----------------------------
 conn = sqlite3.connect("users.db", check_same_thread=False)
 c = conn.cursor()
-
 c.execute("""
 CREATE TABLE IF NOT EXISTS users(
     username TEXT PRIMARY KEY,
@@ -26,11 +39,18 @@ CREATE TABLE IF NOT EXISTS users(
 conn.commit()
 
 # -----------------------------
-# LOAD MODEL
+# AUTO DOWNLOAD MODEL
 # -----------------------------
+MODEL_PATH = "model.h5"
+FILE_ID = "1sIAR8rj37TC7bmBFI38-oaI8xZ22xXs2"
+
 @st.cache_resource
 def load_my_model():
-    return load_model("model.h5")
+    if not os.path.exists(MODEL_PATH):
+        url = f"https://drive.google.com/uc?id={FILE_ID}"
+        gdown.download(url, MODEL_PATH, quiet=False)
+    model = load_model(MODEL_PATH, compile=False)
+    return model
 
 # -----------------------------
 # SESSION STATE
@@ -45,7 +65,7 @@ if "username" not in st.session_state:
     st.session_state.username = ""
 
 # -----------------------------
-# HOME SCREEN
+# HOME / AUTH SCREENS
 # -----------------------------
 if not st.session_state.logged_in:
 
@@ -56,7 +76,6 @@ if not st.session_state.logged_in:
         st.markdown("### Welcome to Smart Pest Detection App")
 
         col1, col2 = st.columns(2)
-
         with col1:
             if st.button("🔐 Login"):
                 st.session_state.page = "login"
@@ -67,45 +86,34 @@ if not st.session_state.logged_in:
                 st.session_state.page = "register"
                 st.rerun()
 
-    # -----------------------------
-    # REGISTER PAGE
-    # -----------------------------
-    elif st.session_state.page == "register":
-
+    if st.session_state.page == "register":
         st.subheader("Create New Account")
-
-        new_user = st.text_input("Username")
-        new_pass = st.text_input("Password", type="password")
+        new_user = st.text_input("Enter Username")
+        new_pass = st.text_input("Enter Password", type="password")
 
         if st.button("Create Account"):
             if new_user and new_pass:
                 try:
                     c.execute("INSERT INTO users VALUES (?,?)", (new_user, new_pass))
                     conn.commit()
-                    st.success("Account Created Successfully!")
+                    st.success("Account Created Successfully! Please Login.")
                 except:
                     st.error("Username already exists!")
             else:
                 st.warning("Please fill all fields")
 
-        if st.button("⬅ Back"):
+        if st.button("⬅ Back to Login"):
             st.session_state.page = "home"
             st.rerun()
 
-    # -----------------------------
-    # LOGIN PAGE
-    # -----------------------------
-    elif st.session_state.page == "login":
-
+    if st.session_state.page == "login":
         st.subheader("Login to Your Account")
-
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
 
         if st.button("Login Now"):
             c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
             data = c.fetchone()
-
             if data:
                 st.session_state.logged_in = True
                 st.session_state.username = username
@@ -174,8 +182,8 @@ else:
             st.info(f"Confidence: {confidence:.2f}%")
 
             st.subheader("🌱 Recommended Remedies")
-            for remedy in remedies[predicted_class]:
-                st.write("•", remedy)
+            for r in remedies[predicted_class]:
+                st.write("•", r)
 
     if st.button("🚪 Logout"):
         st.session_state.logged_in = False
