@@ -131,8 +131,7 @@ else:
 
     model = load_my_model()
 
-   class_names = [
-    "aphids",
+   class_names = ["aphids",
     "armyworm",
     "beetle",
     "bollworm",
@@ -140,8 +139,7 @@ else:
     "mites",
     "mosquito",
     "sawfly",
-    "stem_borer"
-]
+    "stem_borer"]
 
     uploaded_file = st.file_uploader(
         "Upload Pest Image",
