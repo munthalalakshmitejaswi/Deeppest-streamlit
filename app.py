@@ -2,7 +2,6 @@ import streamlit as st
 import sqlite3
 import hashlib
 import numpy as np
-import tensorflow as tf
 from tensorflow.keras.models import load_model
 from tensorflow.keras.applications.efficientnet import preprocess_input
 from PIL import Image
@@ -10,10 +9,22 @@ import gdown
 import os
 
 # -----------------------------
+# HIDE STREAMLIT HEADER & FOOTER
+# -----------------------------
+hide_streamlit_style = """
+<style>
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+</style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# -----------------------------
 # DOWNLOAD MODEL FROM DRIVE
 # -----------------------------
 MODEL_PATH = "newmodel.h5"
-FILE_ID = "https://drive.google.com/file/d/1sIAR8rj37TC7bmBFI38-oaI8xZ22xXs2/view?usp=drive_link"   # <-- REPLACE THIS
+FILE_ID = "1sIAR8rj37TC7bmBFI38-oaI8xZ22xXs2"
 
 @st.cache_resource
 def load_my_model():
@@ -62,51 +73,60 @@ def login_user(username, password):
     return c.fetchone()
 
 # -----------------------------
-# STREAMLIT CONFIG
+# STREAMLIT UI
 # -----------------------------
 st.set_page_config(page_title="Pest Detection App")
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-menu = ["Login", "Register"]
-choice = st.sidebar.selectbox("Menu", menu)
+if "show_register" not in st.session_state:
+    st.session_state.show_register = False
 
 # -----------------------------
-# REGISTER PAGE
+# LOGIN / REGISTER SCREEN
 # -----------------------------
-if choice == "Register":
-    st.subheader("Create New Account")
-    new_user = st.text_input("Username")
-    new_pass = st.text_input("Password", type="password")
+if not st.session_state.logged_in:
 
-    if st.button("Register"):
-        if register_user(new_user, new_pass):
-            st.success("Account created successfully!")
-        else:
-            st.error("Username already exists!")
+    st.title("🌿 Pest Detection System")
 
-# -----------------------------
-# LOGIN PAGE
-# -----------------------------
-elif choice == "Login":
-    st.subheader("Login to Your Account")
+    st.subheader("Login")
+
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
 
-    if st.button("Login"):
-        user = login_user(username, password)
-        if user:
-            st.session_state.logged_in = True
-            st.success("Logged in successfully!")
-            st.rerun()
-        else:
-            st.error("Invalid username or password")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("Login"):
+            user = login_user(username, password)
+            if user:
+                st.session_state.logged_in = True
+                st.rerun()
+            else:
+                st.error("Invalid username or password")
+
+    with col2:
+        if st.button("Register"):
+            st.session_state.show_register = True
+
+    # REGISTER FORM
+    if st.session_state.show_register:
+        st.subheader("Create New Account")
+        new_user = st.text_input("New Username")
+        new_pass = st.text_input("New Password", type="password")
+
+        if st.button("Create Account"):
+            if register_user(new_user, new_pass):
+                st.success("Account created successfully!")
+                st.session_state.show_register = False
+            else:
+                st.error("Username already exists!")
 
 # -----------------------------
 # MAIN APP AFTER LOGIN
 # -----------------------------
-if st.session_state.logged_in:
+else:
     st.title("🌿 Pest Detection System")
 
     model = load_my_model()
